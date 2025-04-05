@@ -20,3 +20,10 @@ export interface FilterParams {
   lastKey?: string;
 }
 
+// Add this type for the mock API
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

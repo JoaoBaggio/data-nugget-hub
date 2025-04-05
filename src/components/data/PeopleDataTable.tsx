@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUsers } from "@/lib/api";
@@ -44,19 +45,21 @@ export const PeopleDataTable = ({ initialPageSize = 10 }: PeopleDataTableProps) 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["users", filterParams],
     queryFn: () => fetchUsers(filterParams),
-    onSuccess: (data) => {
-      if (currentPage === 1) {
-        setTotalItems(data.items.length);
-      } else {
-        setTotalItems(prev => prev + data.items.length);
+    meta: {
+      onSuccess: (data: UserApiResponse) => {
+        if (currentPage === 1) {
+          setTotalItems(data.items.length);
+        } else {
+          setTotalItems(prev => prev + data.items.length);
+        }
+      },
+      onError: () => {
+        toast({
+          title: "Error",
+          description: "Failed to fetch users data.",
+          variant: "destructive",
+        });
       }
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to fetch users data.",
-        variant: "destructive",
-      });
     }
   });
 

@@ -1,5 +1,5 @@
 
-import { FilterParams, PaginatedResponse, User } from "@/types";
+import { FilterParams, User, UserApiResponse } from "@/types";
 
 // Mock database
 let users: User[] = [];
@@ -70,7 +70,7 @@ export const uploadCSV = async (file: File): Promise<{ success: boolean; count: 
   });
 };
 
-export const fetchUsers = async (params: FilterParams): Promise<PaginatedResponse<User>> => {
+export const fetchUsers = async (params: FilterParams): Promise<UserApiResponse> => {
   return new Promise((resolve) => {
     // Simulate API delay
     setTimeout(() => {
@@ -85,16 +85,19 @@ export const fetchUsers = async (params: FilterParams): Promise<PaginatedRespons
       }
       
       // Calculate pagination
-      const total = filteredUsers.length;
-      const startIndex = (params.page - 1) * params.pageSize;
-      const endIndex = startIndex + params.pageSize;
+      const startIndex = params.lastKey ? users.findIndex(user => user.email === JSON.parse(params.lastKey!).email.S) + 1 : 0;
+      const endIndex = startIndex + params.limit;
       const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
       
+      // Create lastKey for next page if there are more items
+      const hasMoreItems = endIndex < filteredUsers.length;
+      const lastKey = hasMoreItems 
+        ? JSON.stringify({ email: { S: paginatedUsers[paginatedUsers.length - 1].email } })
+        : null;
+      
       resolve({
-        data: paginatedUsers,
-        total,
-        page: params.page,
-        pageSize: params.pageSize,
+        items: paginatedUsers,
+        lastKey: lastKey
       });
     }, 500);
   });
