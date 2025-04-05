@@ -1,7 +1,6 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchUsers } from "@/lib/api-mock";
+import { fetchUsers } from "@/lib/api";
 import { FilterField, User, FilterParams } from "@/types";
 import {
   Table,
@@ -21,30 +20,72 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface PeopleDataTableProps {
   initialPageSize?: number;
 }
 
 export const PeopleDataTable = ({ initialPageSize = 10 }: PeopleDataTableProps) => {
+  const { toast } = useToast();
   const [filterParams, setFilterParams] = useState<FilterParams>({
-    page: 1,
-    pageSize: initialPageSize,
+    limit: initialPageSize,
+    lastKey: undefined,
     field: undefined,
     value: "",
   });
 
+  const [previousKeys, setPreviousKeys] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [filterField, setFilterField] = useState<FilterField | undefined>(undefined);
   const [filterValue, setFilterValue] = useState<string>("");
+  const [totalItems, setTotalItems] = useState(0);
 
-  // Fetch users with the current filter params
   const { data, isLoading, isError } = useQuery({
     queryKey: ["users", filterParams],
     queryFn: () => fetchUsers(filterParams),
+    onSuccess: (data) => {
+      if (currentPage === 1) {
+        setTotalItems(data.items.length);
+      } else {
+        setTotalItems(prev => prev + data.items.length);
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to fetch users data.",
+        variant: "destructive",
+      });
+    }
   });
 
-  const handlePageChange = (newPage: number) => {
-    setFilterParams((prev) => ({ ...prev, page: newPage }));
+  const handleNextPage = () => {
+    if (data?.lastKey) {
+      setPreviousKeys(prev => [...prev, filterParams.lastKey || '']);
+      
+      setFilterParams(prev => ({
+        ...prev,
+        lastKey: data.lastKey,
+      }));
+      
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      const newLastKey = currentPage > 2 ? previousKeys[previousKeys.length - 1] : undefined;
+      
+      setPreviousKeys(prev => prev.slice(0, -1));
+      
+      setFilterParams(prev => ({
+        ...prev,
+        lastKey: newLastKey,
+      }));
+      
+      setCurrentPage(prev => prev - 1);
+    }
   };
 
   const handleFilterChange = (field: FilterField | undefined, value: string) => {
@@ -53,35 +94,36 @@ export const PeopleDataTable = ({ initialPageSize = 10 }: PeopleDataTableProps) 
   };
 
   const applyFilter = () => {
-    setFilterParams((prev) => ({
-      ...prev,
+    setPreviousKeys([]);
+    setCurrentPage(1);
+    
+    setFilterParams({
       field: filterField,
       value: filterValue,
-      page: 1, // Reset to first page when applying filter
-    }));
+      limit: filterParams.limit,
+      lastKey: undefined,
+    });
   };
 
   const clearFilter = () => {
     setFilterField(undefined);
     setFilterValue("");
-    setFilterParams((prev) => ({
-      ...prev,
+    setPreviousKeys([]);
+    setCurrentPage(1);
+    
+    setFilterParams({
       field: undefined,
       value: "",
-      page: 1,
-    }));
+      limit: filterParams.limit,
+      lastKey: undefined,
+    });
   };
 
-  // Calculate pagination values
-  const totalPages = data ? Math.ceil(data.total / filterParams.pageSize) : 0;
-  const startIndex = data ? (filterParams.page - 1) * filterParams.pageSize + 1 : 0;
-  const endIndex = data
-    ? Math.min(startIndex + filterParams.pageSize - 1, data.total)
-    : 0;
+  const canGoNext = !!data?.lastKey;
+  const canGoPrevious = currentPage > 1;
 
   return (
     <div className="space-y-4">
-      {/* Filter controls */}
       <div className="flex flex-wrap gap-4 items-end pb-4">
         <div className="space-y-1">
           <label className="text-sm font-medium" htmlFor="filter-field">
@@ -144,7 +186,6 @@ export const PeopleDataTable = ({ initialPageSize = 10 }: PeopleDataTableProps) 
         )}
       </div>
 
-      {/* Active filter indicator */}
       {filterParams.field && filterParams.value && (
         <div className="bg-muted py-2 px-4 rounded-md text-sm flex items-center">
           <span className="font-medium mr-2">Active filter:</span>
@@ -156,7 +197,6 @@ export const PeopleDataTable = ({ initialPageSize = 10 }: PeopleDataTableProps) 
         </div>
       )}
 
-      {/* Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -182,15 +222,15 @@ export const PeopleDataTable = ({ initialPageSize = 10 }: PeopleDataTableProps) 
                   Error loading data
                 </TableCell>
               </TableRow>
-            ) : data?.data.length === 0 ? (
+            ) : data?.items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="h-24 text-center">
                   No results found
                 </TableCell>
               </TableRow>
             ) : (
-              data?.data.map((user: User) => (
-                <TableRow key={user.id}>
+              data?.items.map((user: User, index) => (
+                <TableRow key={`${user.email}-${index}`}>
                   <TableCell>{user.first_name}</TableCell>
                   <TableCell>{user.last_name}</TableCell>
                   <TableCell>{user.email}</TableCell>
@@ -201,30 +241,29 @@ export const PeopleDataTable = ({ initialPageSize = 10 }: PeopleDataTableProps) 
         </Table>
       </div>
 
-      {/* Pagination */}
-      {!isLoading && data && data.total > 0 && (
+      {!isLoading && data && data.items.length > 0 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {startIndex}-{endIndex} of {data.total} {data.total === 1 ? "entry" : "entries"}
+            Page {currentPage} {filterParams.field && `(filtered)`}
           </div>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handlePageChange(filterParams.page - 1)}
-              disabled={filterParams.page === 1}
+              onClick={handlePreviousPage}
+              disabled={!canGoPrevious}
             >
               <ChevronLeft className="h-4 w-4" />
               <span className="sr-only">Previous page</span>
             </Button>
             <div className="text-sm font-medium">
-              Page {filterParams.page} of {totalPages}
+              {currentPage}
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handlePageChange(filterParams.page + 1)}
-              disabled={filterParams.page >= totalPages}
+              onClick={handleNextPage}
+              disabled={!canGoNext}
             >
               <ChevronRight className="h-4 w-4" />
               <span className="sr-only">Next page</span>

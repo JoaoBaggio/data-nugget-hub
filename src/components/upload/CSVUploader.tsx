@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, CheckCircle2, XCircle, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { uploadCSV } from "@/lib/api-mock";
+import { getSignedUploadURL, uploadCSVToSignedURL } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 
 export const CSVUploader = () => {
@@ -20,27 +20,22 @@ export const CSVUploader = () => {
     setUploadStatus("idle");
 
     try {
-      const response = await uploadCSV(file);
+      // Step 1: Get a signed URL for upload
+      const { uploadUrl, key } = await getSignedUploadURL(file.name);
       
-      if (response.success) {
-        setUploadStatus("success");
-        toast({
-          title: "Upload Successful",
-          description: `Successfully processed ${response.count} records.`,
-        });
-      } else {
-        setUploadStatus("error");
-        toast({
-          title: "Upload Failed",
-          description: "There was an error processing your file.",
-          variant: "destructive",
-        });
-      }
+      // Step 2: Upload the file to the signed URL
+      await uploadCSVToSignedURL(uploadUrl, file);
+      
+      setUploadStatus("success");
+      toast({
+        title: "Upload Successful",
+        description: `File uploaded successfully with key: ${key}`,
+      });
     } catch (error) {
       setUploadStatus("error");
       toast({
-        title: "Upload Error",
-        description: "An unexpected error occurred during upload.",
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred during upload.",
         variant: "destructive",
       });
     } finally {

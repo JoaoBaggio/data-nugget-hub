@@ -1,6 +1,7 @@
 
 import axios from 'axios';
 import { ENV } from '@/config/env';
+import { FilterParams, UserApiResponse } from '@/types';
 
 export const getSignedUploadURL = async (fileName: string) => {
   try {
@@ -33,3 +34,26 @@ export const uploadCSVToSignedURL = async (uploadUrl: string, file: File) => {
     throw error;
   }
 };
+
+export const fetchUsers = async (params: FilterParams): Promise<UserApiResponse> => {
+  try {
+    const { limit, lastKey, field, value } = params;
+    
+    let url = `${ENV.API_BASE_URL}/restapis/h2jdeffnbb/dev/_user_request_/get-users?limit=${limit}`;
+    
+    if (lastKey) {
+      url += `&lastKey=${encodeURIComponent(lastKey)}`;
+    }
+    
+    if (field && value) {
+      url += `&field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`;
+    }
+    
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw error;
+  }
+};
+
