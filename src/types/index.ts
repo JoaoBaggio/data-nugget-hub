@@ -45,9 +45,15 @@ export interface FilterParams {
   limit: number;
   page?: number;
   userId?: string;
+  lastKey?: string;
 }
 
 export interface SignedUploadUrlResponse {
   uploadUrl: string;
   key: string;
+}
+
+export interface UserApiResponse {
+  items: User[];
+  lastKey: string | null;
 }
