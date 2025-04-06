@@ -12,7 +12,10 @@ export const getSignedUploadURL = async (fileName: string) => {
       fileName
     });
     
-    return response.data;
+    return {
+      uploadUrl: response.data.url,
+      key: response.data.key
+    };
   } catch (error) {
     console.error('Error getting signed URL:', error);
     throw error;
