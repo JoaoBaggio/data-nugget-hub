@@ -84,7 +84,10 @@ export const CSVUploader = () => {
                 </p>
               </>
             )}
-            <Button onClick={reset} variant="outline">Upload Another File</Button>
+            <Button onClick={() => {
+              setUploadedFile(null);
+              setUploadStatus("idle");
+            }} variant="outline">Upload Another File</Button>
           </div>
         </div>
       ) : (
@@ -107,7 +110,7 @@ export const CSVUploader = () => {
             </p>
             <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground">
               <FileSpreadsheet className="w-4 h-4" />
-              <span>Required fields: email, first_name, last_name</span>
+              <span>Required fields: email, first_name, last_name, country</span>
             </div>
           </div>
         </div>

@@ -1,13 +1,15 @@
 
 import axios from 'axios';
-import { ENV } from '@/config/env';
-import { FilterParams, UserApiResponse } from '@/types';
+import { ContactsApiResponse, FilterParams } from '@/types';
+
+const API_BASE_URL = 'https://x2nnoshaqj.execute-api.us-east-2.amazonaws.com/prod';
+const DEFAULT_USER_ID = 'test-user';
 
 export const getSignedUploadURL = async (fileName: string) => {
   try {
-    const response = await axios.post(`${ENV.API_BASE_URL}${ENV.CSV_UPLOAD_ENDPOINT}`, {
-      fileName,
-      fileType: 'text/csv'
+    const response = await axios.post(`${API_BASE_URL}/upload-url`, {
+      userId: DEFAULT_USER_ID,
+      fileName
     });
     
     return response.data;
@@ -19,10 +21,7 @@ export const getSignedUploadURL = async (fileName: string) => {
 
 export const uploadCSVToSignedURL = async (uploadUrl: string, file: File) => {
   try {
-    // If local environment, replace IP with localhost
-    const finalUploadUrl = uploadUrl.replace('172.18.0.2', 'localhost');
-    
-    const response = await axios.put(finalUploadUrl, file, {
+    const response = await axios.put(uploadUrl, file, {
       headers: {
         'Content-Type': 'text/csv'
       }
@@ -35,25 +34,27 @@ export const uploadCSVToSignedURL = async (uploadUrl: string, file: File) => {
   }
 };
 
-export const fetchUsers = async (params: FilterParams): Promise<UserApiResponse> => {
+export const fetchContacts = async (params: FilterParams): Promise<ContactsApiResponse> => {
   try {
-    const { limit, lastKey, field, value } = params;
+    const userId = params.userId || DEFAULT_USER_ID;
+    let url = `${API_BASE_URL}/contacts?userId=${userId}`;
     
-    let url = `${ENV.API_BASE_URL}/restapis/h2jdeffnbb/dev/_user_request_/get-users?limit=${limit}`;
-    
-    if (lastKey) {
-      url += `&lastKey=${encodeURIComponent(lastKey)}`;
+    if (params.page) {
+      url += `&page=${params.page}`;
     }
     
-    if (field && value) {
-      url += `&field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`;
+    if (params.limit) {
+      url += `&limit=${params.limit}`;
+    }
+    
+    if (params.field && params.value) {
+      url += `&${params.field}=${encodeURIComponent(params.value)}`;
     }
     
     const response = await axios.get(url);
     return response.data;
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error fetching contacts:', error);
     throw error;
   }
 };
-
